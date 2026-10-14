@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AppLogo, BackLogo } from "../components/AppLogo.tsx";
 import type { StoredApp, StoredUser } from "../lib/storage.ts";
 import {
   appsForRole,
@@ -41,17 +42,6 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
             </p>
           </div>
           <nav className="top-actions">
-            <button
-              type="button"
-              className="ghost"
-              data-testid="show-list"
-              onClick={() => setView("apps")}
-            >
-              Список
-            </button>
-            <button type="button" className="ghost is-active">
-              Секции
-            </button>
             {user.roleId === "admin" ? (
               <button
                 type="button"
@@ -90,21 +80,6 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
           </p>
         </div>
         <nav className="top-actions">
-          <button
-            type="button"
-            className="ghost"
-            data-testid="show-sections"
-            onClick={() => setView("sections")}
-          >
-            Секции
-          </button>
-          <button
-            type="button"
-            className={view === "apps" ? "ghost is-active" : "ghost"}
-            onClick={() => setView("apps")}
-          >
-            Приложения
-          </button>
           {user.roleId === "admin" ? (
             <button
               type="button"
@@ -120,46 +95,60 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
         </nav>
       </header>
 
-      {view === "urls" && user.roleId === "admin" ? (
-        <UrlEditor
-          onChanged={() => {
-            setRevision((value) => value + 1);
-          }}
-        />
-      ) : (
-        <div className="workspace">
-          <aside className="sidebar">
-            <h1>Доступные приложения</h1>
-            <p className="hint">
-              Показаны только проекты, которые может открыть роль «
-              {role?.title ?? "без роли"}».
-            </p>
-            {apps.length === 0 ? (
-              <p className="hint">Для этой роли нет приложений.</p>
-            ) : (
-              <ul className="app-list">
-                {apps.map((app) => (
-                  <li key={app.id}>
-                    <button
-                      type="button"
-                      className={
-                        selected?.id === app.id ? "app-link is-active" : "app-link"
-                      }
-                      onClick={() => setSelectedId(app.id)}
-                    >
-                      <span>{app.title}</span>
-                      <small>{app.folder}</small>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </aside>
+      <div className="workspace">
+        <aside className="sidebar">
+          <button
+            type="button"
+            className="app-link"
+            aria-label="Назад"
+            onClick={() => setView("sections")}
+          >
+            <BackLogo />
+            <span className="app-tip" aria-hidden="true">
+              Назад
+            </span>
+          </button>
+          {apps.length === 0 ? (
+            <p className="hint">Для этой роли нет приложений.</p>
+          ) : (
+            <ul className="app-list">
+              {apps.map((app) => (
+                <li key={app.id}>
+                  <button
+                    type="button"
+                    className={
+                      view === "apps" && selected?.id === app.id
+                        ? "app-link is-active"
+                        : "app-link"
+                    }
+                    aria-label={app.title}
+                    onClick={() => {
+                      setSelectedId(app.id);
+                      setView("apps");
+                    }}
+                  >
+                    <AppLogo id={app.id} />
+                    <span className="app-tip" aria-hidden="true">
+                      {app.title}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
+        {view === "urls" && user.roleId === "admin" ? (
+          <UrlEditor
+            onChanged={() => {
+              setRevision((value) => value + 1);
+            }}
+          />
+        ) : (
           <section className="stage">
             {selected ? <AppFrame app={selected} /> : null}
           </section>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -180,6 +169,13 @@ function useViewport() {
 
   return size;
 }
+
+const BLANK_SECTIONS = [
+  { id: "blank-1", title: "Секция 1" },
+  { id: "blank-2", title: "Секция 2" },
+  { id: "blank-3", title: "Секция 3" },
+  { id: "blank-4", title: "Секция 4" },
+] as const;
 
 function gridShape(count: number, width: number, height: number) {
   if (count <= 1) return { columns: 1, rows: 1 };
@@ -202,19 +198,12 @@ function SectionBoard({
   onOpen: (id: string) => void;
 }) {
   const viewport = useViewport();
+  const sectionCount = apps.length + BLANK_SECTIONS.length;
   const { columns, rows } = gridShape(
-    apps.length,
+    sectionCount,
     viewport.width,
     viewport.height,
   );
-
-  if (apps.length === 0) {
-    return (
-      <div className="section-board">
-        <p className="hint">Для этой роли нет приложений.</p>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -226,19 +215,28 @@ function SectionBoard({
       }}
     >
       {apps.map((app) => (
-        <section
+        <button
+          type="button"
           className="deck-section"
           key={app.id}
           aria-label={app.title}
           data-testid="section-item"
+          onClick={() => onOpen(app.id)}
+        >
+          <span className="deck-item">
+            <h2>{app.title}</h2>
+          </span>
+        </button>
+      ))}
+      {BLANK_SECTIONS.map((section) => (
+        <section
+          className="deck-section is-blank"
+          key={section.id}
+          aria-label={section.title}
+          data-testid="blank-section"
         >
           <div className="deck-item">
-            <h2>{app.title}</h2>
-            <p>{app.folder}</p>
-            <p>{app.url}</p>
-            <button type="button" onClick={() => onOpen(app.id)}>
-              Открыть
-            </button>
+            <h2>{section.title}</h2>
           </div>
         </section>
       ))}
@@ -247,28 +245,14 @@ function SectionBoard({
 }
 
 function AppFrame({ app }: { app: StoredApp }) {
-  const overridden = app.url !== app.defaultUrl;
   return (
     <>
       <div className="stage-head">
-        <div>
-          <h2>{app.title}</h2>
-          <p>{app.summary}</p>
-        </div>
+        <h2>{app.title}</h2>
         <a href={app.url} target="_blank" rel="noreferrer">
           Открыть отдельно
         </a>
       </div>
-      <p className="url-line">{app.url}</p>
-      {!app.urlKnown && !overridden ? (
-        <p className="hint warn">
-          Адрес dev-сервера в проекте не найден. Сейчас открыта пустая страница.
-        </p>
-      ) : null}
-      {overridden ? (
-        <p className="hint">Адрес изменён в этом браузере.</p>
-      ) : null}
-      <p className="hint">{app.note}</p>
       <iframe
         key={app.url}
         title={app.title}
