@@ -1,0 +1,366 @@
+import { useEffect, useState } from "react";
+import type { StoredApp, StoredUser } from "../lib/storage.ts";
+import {
+  appsForRole,
+  clearSession,
+  getRole,
+  listApps,
+  resetAppUrl,
+  updateAppUrl,
+} from "../lib/storage.ts";
+
+type PortalProps = {
+  user: StoredUser;
+  onLogout: () => void;
+};
+
+export function PortalScreen({ user, onLogout }: PortalProps) {
+  const [view, setView] = useState<"sections" | "apps" | "urls">("sections");
+  const [, setRevision] = useState(0);
+  const role = getRole(user.roleId);
+  const apps = appsForRole(user.roleId);
+  const [selectedId, setSelectedId] = useState(apps[0]?.id ?? "");
+  const selected = apps.find((app) => app.id === selectedId) ?? apps[0];
+
+  function logout() {
+    clearSession();
+    onLogout();
+  }
+
+  if (view === "sections") {
+    return (
+      <div className="shell sections-shell">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">Портал приложений</p>
+            <p className="who">
+              {user.name}{" "}
+              <span>
+                {role?.title ?? user.roleId} · {user.email}
+              </span>
+            </p>
+          </div>
+          <nav className="top-actions">
+            <button
+              type="button"
+              className="ghost"
+              data-testid="show-list"
+              onClick={() => setView("apps")}
+            >
+              Список
+            </button>
+            <button type="button" className="ghost is-active">
+              Секции
+            </button>
+            {user.roleId === "admin" ? (
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setView("urls")}
+              >
+                Адреса
+              </button>
+            ) : null}
+            <button type="button" className="ghost" onClick={logout}>
+              Выйти
+            </button>
+          </nav>
+        </header>
+        <SectionBoard
+          apps={apps}
+          onOpen={(id) => {
+            setSelectedId(id);
+            setView("apps");
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="shell">
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">Портал приложений</p>
+          <p className="who">
+            {user.name}{" "}
+            <span>
+              {role?.title ?? user.roleId} · {user.email}
+            </span>
+          </p>
+        </div>
+        <nav className="top-actions">
+          <button
+            type="button"
+            className="ghost"
+            data-testid="show-sections"
+            onClick={() => setView("sections")}
+          >
+            Секции
+          </button>
+          <button
+            type="button"
+            className={view === "apps" ? "ghost is-active" : "ghost"}
+            onClick={() => setView("apps")}
+          >
+            Приложения
+          </button>
+          {user.roleId === "admin" ? (
+            <button
+              type="button"
+              className={view === "urls" ? "ghost is-active" : "ghost"}
+              onClick={() => setView("urls")}
+            >
+              Адреса
+            </button>
+          ) : null}
+          <button type="button" className="ghost" onClick={logout}>
+            Выйти
+          </button>
+        </nav>
+      </header>
+
+      {view === "urls" && user.roleId === "admin" ? (
+        <UrlEditor
+          onChanged={() => {
+            setRevision((value) => value + 1);
+          }}
+        />
+      ) : (
+        <div className="workspace">
+          <aside className="sidebar">
+            <h1>Доступные приложения</h1>
+            <p className="hint">
+              Показаны только проекты, которые может открыть роль «
+              {role?.title ?? "без роли"}».
+            </p>
+            {apps.length === 0 ? (
+              <p className="hint">Для этой роли нет приложений.</p>
+            ) : (
+              <ul className="app-list">
+                {apps.map((app) => (
+                  <li key={app.id}>
+                    <button
+                      type="button"
+                      className={
+                        selected?.id === app.id ? "app-link is-active" : "app-link"
+                      }
+                      onClick={() => setSelectedId(app.id)}
+                    >
+                      <span>{app.title}</span>
+                      <small>{app.folder}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+          <section className="stage">
+            {selected ? <AppFrame app={selected} /> : null}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function useViewport() {
+  const [size, setSize] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+
+  useEffect(() => {
+    const onResize = () => {
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return size;
+}
+
+function gridShape(count: number, width: number, height: number) {
+  if (count <= 1) return { columns: 1, rows: 1 };
+  const headerAllowance = width < 800 ? 240 : 120;
+  const boardHeight = Math.max(height - headerAllowance, 220);
+  const maxRows = Math.max(1, Math.floor(boardHeight / 104));
+  let columns =
+    width < 800 ? Math.min(3, count) : Math.ceil(Math.sqrt(count));
+  if (Math.ceil(count / columns) > maxRows) {
+    columns = Math.min(count, Math.ceil(count / maxRows));
+  }
+  return { columns, rows: Math.ceil(count / columns) };
+}
+
+function SectionBoard({
+  apps,
+  onOpen,
+}: {
+  apps: StoredApp[];
+  onOpen: (id: string) => void;
+}) {
+  const viewport = useViewport();
+  const { columns, rows } = gridShape(
+    apps.length,
+    viewport.width,
+    viewport.height,
+  );
+
+  if (apps.length === 0) {
+    return (
+      <div className="section-board">
+        <p className="hint">Для этой роли нет приложений.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="section-board"
+      data-testid="section-deck"
+      style={{
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+      }}
+    >
+      {apps.map((app) => (
+        <section
+          className="deck-section"
+          key={app.id}
+          aria-label={app.title}
+          data-testid="section-item"
+        >
+          <div className="deck-item">
+            <h2>{app.title}</h2>
+            <p>{app.folder}</p>
+            <p>{app.url}</p>
+            <button type="button" onClick={() => onOpen(app.id)}>
+              Открыть
+            </button>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function AppFrame({ app }: { app: StoredApp }) {
+  const overridden = app.url !== app.defaultUrl;
+  return (
+    <>
+      <div className="stage-head">
+        <div>
+          <h2>{app.title}</h2>
+          <p>{app.summary}</p>
+        </div>
+        <a href={app.url} target="_blank" rel="noreferrer">
+          Открыть отдельно
+        </a>
+      </div>
+      <p className="url-line">{app.url}</p>
+      {!app.urlKnown && !overridden ? (
+        <p className="hint warn">
+          Адрес dev-сервера в проекте не найден. Сейчас открыта пустая страница.
+        </p>
+      ) : null}
+      {overridden ? (
+        <p className="hint">Адрес изменён в этом браузере.</p>
+      ) : null}
+      <p className="hint">{app.note}</p>
+      <iframe
+        key={app.url}
+        title={app.title}
+        src={app.url}
+        className="frame"
+      />
+    </>
+  );
+}
+
+function UrlEditor({ onChanged }: { onChanged: () => void }) {
+  const [apps, setApps] = useState(() => listApps());
+  const [drafts, setDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(listApps().map((app) => [app.id, app.url])),
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function refresh() {
+    const next = listApps();
+    setApps(next);
+    setDrafts(Object.fromEntries(next.map((app) => [app.id, app.url])));
+    onChanged();
+  }
+
+  return (
+    <main className="urls">
+      <h1>Адреса приложений</h1>
+      <p className="hint">
+        Адреса iframe хранятся в этом браузере. Сброс возвращает значение из{" "}
+        <code>src/config/catalog.ts</code>.
+      </p>
+      <ul className="url-list">
+        {apps.map((app) => (
+          <li key={app.id}>
+            <div>
+              <h2>{app.title}</h2>
+              <p className="hint">
+                {app.folder}
+                {app.urlKnown ? " · адрес из проекта" : " · адрес по умолчанию"}
+              </p>
+            </div>
+            <label>
+              Адрес iframe
+              <input
+                value={drafts[app.id] ?? app.url}
+                onChange={(event) =>
+                  setDrafts((current) => ({
+                    ...current,
+                    [app.id]: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            {errors[app.id] ? (
+              <p className="error" role="alert">
+                {errors[app.id]}
+              </p>
+            ) : null}
+            <div className="row-actions">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const result = updateAppUrl(app.id, drafts[app.id] ?? "");
+                  if (!result.ok) {
+                    setErrors((current) => ({
+                      ...current,
+                      [app.id]: result.message,
+                    }));
+                    return;
+                  }
+                  setErrors((current) => ({ ...current, [app.id]: "" }));
+                  refresh();
+                }}
+              >
+                Сохранить
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  resetAppUrl(app.id);
+                  setErrors((current) => ({ ...current, [app.id]: "" }));
+                  refresh();
+                }}
+              >
+                Сбросить
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
