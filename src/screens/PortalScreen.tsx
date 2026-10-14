@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { AppLogo, BackLogo } from "../components/AppLogo.tsx";
-import type { StoredApp, StoredUser } from "../lib/storage.ts";
 import {
   appsForRole,
   clearSession,
@@ -8,12 +7,56 @@ import {
   listApps,
   resetAppUrl,
   updateAppUrl,
+  type StoredApp,
+  type StoredUser,
 } from "../lib/storage.ts";
 
 type PortalProps = {
   user: StoredUser;
   onLogout: () => void;
 };
+
+function PortalHeader({
+  user,
+  roleTitle,
+  addressesActive = false,
+  onOpenAddresses,
+  onLogout,
+}: {
+  user: StoredUser;
+  roleTitle: string;
+  addressesActive?: boolean;
+  onOpenAddresses: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <header className="topbar">
+      <div>
+        <p className="eyebrow">Портал приложений</p>
+        <p className="who">
+          {user.name}{" "}
+          <span>
+            {roleTitle} · {user.email}
+          </span>
+        </p>
+      </div>
+      <nav className="top-actions">
+        {user.roleId === "admin" ? (
+          <button
+            type="button"
+            className={addressesActive ? "ghost is-active" : "ghost"}
+            onClick={onOpenAddresses}
+          >
+            Адреса
+          </button>
+        ) : null}
+        <button type="button" className="ghost" onClick={onLogout}>
+          Выйти
+        </button>
+      </nav>
+    </header>
+  );
+}
 
 export function PortalScreen({ user, onLogout }: PortalProps) {
   const [view, setView] = useState<"sections" | "apps" | "urls">("sections");
@@ -31,31 +74,12 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
   if (view === "sections") {
     return (
       <div className="shell sections-shell">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Портал приложений</p>
-            <p className="who">
-              {user.name}{" "}
-              <span>
-                {role?.title ?? user.roleId} · {user.email}
-              </span>
-            </p>
-          </div>
-          <nav className="top-actions">
-            {user.roleId === "admin" ? (
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => setView("urls")}
-              >
-                Адреса
-              </button>
-            ) : null}
-            <button type="button" className="ghost" onClick={logout}>
-              Выйти
-            </button>
-          </nav>
-        </header>
+        <PortalHeader
+          user={user}
+          roleTitle={role?.title ?? user.roleId}
+          onOpenAddresses={() => setView("urls")}
+          onLogout={logout}
+        />
         <SectionBoard
           apps={apps}
           onOpen={(id) => {
@@ -69,31 +93,13 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Портал приложений</p>
-          <p className="who">
-            {user.name}{" "}
-            <span>
-              {role?.title ?? user.roleId} · {user.email}
-            </span>
-          </p>
-        </div>
-        <nav className="top-actions">
-          {user.roleId === "admin" ? (
-            <button
-              type="button"
-              className={view === "urls" ? "ghost is-active" : "ghost"}
-              onClick={() => setView("urls")}
-            >
-              Адреса
-            </button>
-          ) : null}
-          <button type="button" className="ghost" onClick={logout}>
-            Выйти
-          </button>
-        </nav>
-      </header>
+      <PortalHeader
+        user={user}
+        roleTitle={role?.title ?? user.roleId}
+        addressesActive={view === "urls"}
+        onOpenAddresses={() => setView("urls")}
+        onLogout={logout}
+      />
 
       <div className="workspace">
         <aside className="sidebar">
@@ -108,6 +114,7 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
               Назад
             </span>
           </button>
+          <hr className="sidebar-rule" />
           {apps.length === 0 ? (
             <p className="hint">Для этой роли нет приложений.</p>
           ) : (
@@ -230,7 +237,7 @@ function SectionBoard({
       ))}
       {BLANK_SECTIONS.map((section) => (
         <section
-          className="deck-section is-blank"
+          className="deck-section"
           key={section.id}
           aria-label={section.title}
           data-testid="blank-section"

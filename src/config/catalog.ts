@@ -1,14 +1,14 @@
-export const ROLE_IDS = ["admin", "acoustic", "hr", "sales"] as const;
+const ROLE_IDS = ["admin", "acoustic", "hr", "sales"] as const;
 
 export type RoleId = (typeof ROLE_IDS)[number];
 
-export type SeedRole = {
+type SeedRole = {
   id: RoleId;
   title: string;
   summary: string;
 };
 
-export type SeedApp = {
+type SeedApp = {
   id: string;
   title: string;
   summary: string;

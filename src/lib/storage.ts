@@ -18,7 +18,7 @@ export type StoredUser = {
   roleId: RoleId;
 };
 
-export type StoredRole = {
+type StoredRole = {
   id: RoleId;
   title: string;
   summary: string;
@@ -45,9 +45,9 @@ type Database = {
   catalogUrlEpoch?: number;
 };
 
-export type AuthFailure = { ok: false; message: string };
-export type RegisterResult = { ok: true } | AuthFailure;
-export type LoginResult = { ok: true; user: StoredUser } | AuthFailure;
+type AuthFailure = { ok: false; message: string };
+type RegisterResult = { ok: true } | AuthFailure;
+type LoginResult = { ok: true; user: StoredUser } | AuthFailure;
 
 function seedDatabase(): Database {
   return {
@@ -252,7 +252,7 @@ export function clearSession(): void {
   writeDatabase(database);
 }
 
-export async function hashPassword(password: string): Promise<string> {
+async function hashPassword(password: string): Promise<string> {
   const bytes = new TextEncoder().encode(password);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const hex = [...new Uint8Array(digest)]
@@ -314,7 +314,7 @@ export async function loginUser(input: {
   return { ok: true, user };
 }
 
-export function isHttpUrl(value: string): boolean {
+function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:";
