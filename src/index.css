@@ -64,6 +64,64 @@ p {
   letter-spacing: -0.03em;
 }
 
+.auth-title .portal-tip {
+  position: relative;
+  cursor: help;
+  outline: none;
+}
+
+.auth-title .portal-tip::after {
+  content: attr(data-hint);
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: calc(100% + 8px);
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--panel);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(28, 25, 22, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: center;
+  transform: rotate(-1440deg);
+  clip-path: circle(8px at 50% 50%);
+  transition:
+    opacity 2s ease,
+    clip-path 3s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 1s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.auth-title .portal-tip:hover::after,
+.auth-title .portal-tip:focus-visible::after {
+  opacity: 1;
+  clip-path: circle(165px at 50% 50%);
+  transform: rotate(0deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-title .portal-tip::after,
+  .auth-title .portal-tip:hover::after,
+  .auth-title .portal-tip:focus-visible::after {
+    clip-path: none;
+    transform: none;
+    transition: opacity 0.15s ease;
+  }
+}
+
+.auth-title .portal-tip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .auth-intro p:last-child {
   margin-top: 12px;
   color: var(--muted);

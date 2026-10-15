@@ -220,7 +220,15 @@ function AuthLayout({
   return (
     <main className="auth">
       <section className="auth-intro">
-        <h1>Портал приложений dBase</h1>
+        <h1 className="auth-title">
+          <span
+            className="portal-tip"
+            tabIndex={0}
+            data-hint="разрыв в пространстве-времени, искусственного или естественного происхождения, позволяющий материи мгновенно перемещаться между двумя точками пространства или времени"
+          >
+            Портал dBase
+          </span>
+        </h1>
         <p>{lead}</p>
       </section>
       <section className="card">
