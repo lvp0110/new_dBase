@@ -162,7 +162,7 @@ export function LoginScreen({
   return (
     <AuthLayout
       title="Вход"
-      lead="Войдите, чтобы открыть приложения"
+      lead="Войдите, чтобы открыть портал"
     >
       <form className="form" onSubmit={onSubmit} data-testid="login-form">
         {notice ? <p className="notice">{notice}</p> : null}
@@ -224,7 +224,7 @@ function AuthLayout({
           <span
             className="portal-tip"
             tabIndex={0}
-            data-hint="разрыв в пространстве-времени, искусственного или естественного происхождения, позволяющий материи мгновенно перемещаться между двумя точками пространства или времени"
+            data-hint="разрыв в пространстве-времени, искусственного или естественного происхождения, позволяющий информации мгновенно перемещаться между двумя точками пространства или времени"
           >
             Портал dBase
           </span>
