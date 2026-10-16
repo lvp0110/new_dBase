@@ -34,10 +34,13 @@ function PortalHeader({
       <div>
         <p className="eyebrow">Портал приложений</p>
         <p className="who">
-          {user.name}{" "}
-          <span>
-            {roleTitle} · {user.email}
+          <span className="who-text">
+            {user.name}{" "}
+            <span>
+              {roleTitle} · {user.email}
+            </span>
           </span>
+          <img className="who-logo" src="/person_logo.png" alt={user.name} />
         </p>
       </div>
       <nav className="top-actions">
@@ -186,6 +189,7 @@ const BLANK_SECTIONS = [
 
 function gridShape(count: number, width: number, height: number) {
   if (count <= 1) return { columns: 1, rows: 1 };
+  if (width < 768) return { columns: 1, rows: count };
   const headerAllowance = width < 800 ? 240 : 120;
   const boardHeight = Math.max(height - headerAllowance, 220);
   const maxRows = Math.max(1, Math.floor(boardHeight / 104));
