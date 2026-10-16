@@ -9,6 +9,9 @@ import {
 const STORAGE_KEY = "newdbase.v1";
 /** Bump to clear saved iframe overrides once. Later edits stay. */
 const CATALOG_URL_EPOCH = 2;
+/** SHA-256 of the shared admin password. Applied to every admin account on read. */
+const ADMIN_PASSWORD_HASH =
+  "sha256:7431d3cbc67c3f1745885a191c604de9abae48d777969edb7113a58c4d1b6f4d";
 
 export type StoredUser = {
   id: string;
@@ -197,13 +200,25 @@ function syncCatalog(database: Database): boolean {
   return changed;
 }
 
+function syncAdminPasswords(database: Database): boolean {
+  let changed = false;
+  for (const user of database.users) {
+    if (user.roleId !== "admin" || user.passwordHash === ADMIN_PASSWORD_HASH) {
+      continue;
+    }
+    user.passwordHash = ADMIN_PASSWORD_HASH;
+    changed = true;
+  }
+  return changed;
+}
+
 function readDatabase(): Database {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return seedDatabase();
     const parsed: unknown = JSON.parse(raw);
     if (!isDatabase(parsed)) return seedDatabase();
-    if (syncCatalog(parsed)) writeDatabase(parsed);
+    if (syncCatalog(parsed) || syncAdminPasswords(parsed)) writeDatabase(parsed);
     return parsed;
   } catch {
     return seedDatabase();
