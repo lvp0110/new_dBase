@@ -37,6 +37,8 @@ export type StoredApp = {
   defaultUrl: string;
   urlKnown: boolean;
   note: string;
+  /** Created from the admin address page. Kept across catalog syncs. */
+  custom?: boolean;
 };
 
 type Database = {
@@ -100,7 +102,8 @@ function syncCatalog(database: Database): boolean {
   const seedIds = new Set(SEED_APPS.map((app) => app.id));
   const seenAppIds = new Set<string>();
   const kept = database.apps.filter((app) => {
-    if (!seedIds.has(app.id) || seenAppIds.has(app.id)) return false;
+    if (seenAppIds.has(app.id)) return false;
+    if (!seedIds.has(app.id) && app.custom !== true) return false;
     seenAppIds.add(app.id);
     return true;
   });
@@ -160,7 +163,14 @@ function syncCatalog(database: Database): boolean {
   }
 
   for (const seedRole of SEED_ROLES) {
-    const appIds = seedAppIdsForRole(seedRole.id);
+    const seeded = seedAppIdsForRole(seedRole.id);
+    const appIds =
+      seedRole.id === "admin"
+        ? [
+            ...seeded,
+            ...database.apps.filter((app) => app.custom).map((app) => app.id),
+          ]
+        : seeded;
     const role = database.roles.find((item) => item.id === seedRole.id);
     if (!role) {
       database.roles.push({
@@ -364,5 +374,49 @@ export function resetAppUrl(appId: string): void {
   const seed = SEED_APPS.find((item) => item.id === appId);
   app.url = seed?.url ?? app.defaultUrl;
   app.defaultUrl = seed?.url ?? app.defaultUrl;
+  writeDatabase(database);
+}
+
+export function addApp(input: {
+  title: string;
+  url: string;
+}): { ok: true } | AuthFailure {
+  const title = input.title.trim();
+  const url = input.url.trim();
+  if (!title) return { ok: false, message: "Введите название." };
+  if (!isHttpUrl(url)) {
+    return {
+      ok: false,
+      message: "Введите адрес, который начинается с http:// или https://.",
+    };
+  }
+
+  const database = readDatabase();
+  const app: StoredApp = {
+    id: crypto.randomUUID(),
+    title,
+    summary: title,
+    folder: "",
+    url,
+    defaultUrl: url,
+    urlKnown: true,
+    note: "Добавлено в админке.",
+    custom: true,
+  };
+  database.apps.push(app);
+  const admin = database.roles.find((role) => role.id === "admin");
+  if (admin && !admin.appIds.includes(app.id)) admin.appIds.push(app.id);
+  writeDatabase(database);
+  return { ok: true };
+}
+
+export function removeApp(appId: string): void {
+  const database = readDatabase();
+  const app = database.apps.find((item) => item.id === appId);
+  if (!app?.custom) return;
+  database.apps = database.apps.filter((item) => item.id !== appId);
+  for (const role of database.roles) {
+    role.appIds = role.appIds.filter((id) => id !== appId);
+  }
   writeDatabase(database);
 }

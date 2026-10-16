@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AppLogo, BackLogo } from "../components/AppLogo.tsx";
 import {
+  addApp,
   appsForRole,
   clearSession,
   getRole,
   listApps,
+  removeApp,
   resetAppUrl,
   updateAppUrl,
   type StoredApp,
@@ -192,6 +194,9 @@ const BLANK_SECTIONS = [
   { id: "blank-4", title: "Секция 4" },
 ] as const;
 
+const LOREM_50 =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat.";
+
 function gridShape(count: number, width: number, height: number) {
   if (count <= 1) return { columns: 1, rows: 1 };
   if (width < 768) return { columns: 1, rows: count };
@@ -220,6 +225,7 @@ function SectionBoard({
     viewport.width,
     viewport.height,
   );
+  const emptyCells = columns * rows - sectionCount;
 
   return (
     <div
@@ -256,6 +262,15 @@ function SectionBoard({
           </div>
         </section>
       ))}
+      {emptyCells > 0 ? (
+        <div
+          className="deck-note"
+          data-testid="deck-note"
+          style={{ gridColumn: `span ${emptyCells}` }}
+        >
+          <p>{LOREM_50}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -285,6 +300,10 @@ function UrlEditor({ onChanged }: { onChanged: () => void }) {
     Object.fromEntries(listApps().map((app) => [app.id, app.url])),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   function refresh() {
     const next = listApps();
@@ -293,21 +312,83 @@ function UrlEditor({ onChanged }: { onChanged: () => void }) {
     onChanged();
   }
 
+  function onCreate(event: FormEvent) {
+    event.preventDefault();
+    const result = addApp({ title, url });
+    if (!result.ok) {
+      setCreateError(result.message);
+      return;
+    }
+    setTitle("");
+    setUrl("");
+    setCreateError("");
+    setCreateOpen(false);
+    refresh();
+  }
+
   return (
     <main className="urls">
       <h1>Адреса приложений</h1>
       <p className="hint">
         Адреса iframe хранятся в этом браузере. Сброс возвращает значение из{" "}
-        <code>src/config/catalog.ts</code>.
+        <code>src/config/catalog.ts</code>. Новое приложение видит администратор.
       </p>
+      <div className="url-create">
+        <div className="url-create-head">
+          <h2>Новое приложение</h2>
+          <button
+            type="button"
+            className={createOpen ? "url-create-toggle is-open" : "url-create-toggle"}
+            aria-expanded={createOpen}
+            aria-label={createOpen ? "Закрыть" : "Открыть"}
+            onClick={() => setCreateOpen((open) => !open)}
+          />
+        </div>
+        {createOpen ? (
+          <form onSubmit={onCreate} data-testid="add-app-form">
+            <label>
+              Название
+              <input
+                name="title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Адрес
+              <input
+                name="url"
+                type="url"
+                inputMode="url"
+                placeholder="https://"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                required
+              />
+            </label>
+            {createError ? (
+              <p className="error" role="alert">
+                {createError}
+              </p>
+            ) : null}
+            <div className="row-actions">
+              <button type="submit" className="primary">
+                Добавить
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </div>
       <ul className="url-list">
         {apps.map((app) => (
           <li key={app.id}>
             <div>
               <h2>{app.title}</h2>
               <p className="hint">
-                {app.folder}
-                {app.urlKnown ? " · адрес из проекта" : " · адрес по умолчанию"}
+                {app.custom
+                  ? "Добавлено вручную"
+                  : `${app.folder}${app.urlKnown ? " · адрес из проекта" : " · адрес по умолчанию"}`}
               </p>
             </div>
             <label>
@@ -357,6 +438,19 @@ function UrlEditor({ onChanged }: { onChanged: () => void }) {
               >
                 Сбросить
               </button>
+              {app.custom ? (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    removeApp(app.id);
+                    setErrors((current) => ({ ...current, [app.id]: "" }));
+                    refresh();
+                  }}
+                >
+                  Удалить
+                </button>
+              ) : null}
             </div>
           </li>
         ))}
