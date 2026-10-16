@@ -31,32 +31,37 @@ function PortalHeader({
 }) {
   return (
     <header className="topbar">
-      <div>
-        <p className="eyebrow">Портал приложений</p>
-        <p className="who">
-          <span className="who-text">
-            {user.name}{" "}
-            <span>
-              {roleTitle} · {user.email}
+      <div className="topbar-start">
+        <img className="brand-logo" src="/logo_1234.png" alt="dataBase" />
+        <div>
+          <p className="eyebrow">Портал приложений</p>
+          <p className="who">
+            <span className="who-text">
+              {user.name}{" "}
+              <span>
+                {roleTitle} · {user.email}
+              </span>
             </span>
-          </span>
-          <img className="who-logo" src="/person_logo.png" alt={user.name} />
-        </p>
+            <img className="who-logo" src="/person_logo.png" alt={user.name} />
+          </p>
+        </div>
       </div>
-      <nav className="top-actions">
-        {user.roleId === "admin" ? (
-          <button
-            type="button"
-            className={addressesActive ? "ghost is-active" : "ghost"}
-            onClick={onOpenAddresses}
-          >
-            Адреса
+      <div className="topbar-end">
+        <nav className="top-actions">
+          {user.roleId === "admin" ? (
+            <button
+              type="button"
+              className={addressesActive ? "ghost is-active" : "ghost"}
+              onClick={onOpenAddresses}
+            >
+              Адреса
+            </button>
+          ) : null}
+          <button type="button" className="ghost" onClick={onLogout}>
+            Выйти
           </button>
-        ) : null}
-        <button type="button" className="ghost" onClick={onLogout}>
-          Выйти
-        </button>
-      </nav>
+        </nav>
+      </div>
     </header>
   );
 }

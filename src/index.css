@@ -396,6 +396,27 @@ button,
   width: auto;
 }
 
+.topbar-start {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.brand-logo {
+  display: block;
+  height: 52px;
+  width: auto;
+  flex: none;
+}
+
 .top-actions {
   display: flex;
   gap: 8px;
@@ -635,7 +656,21 @@ button.deck-section:focus-visible {
   }
 
   .topbar {
-    align-items: start;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .topbar .eyebrow {
+    display: none;
+  }
+
+  .topbar-start,
+  .topbar-end,
+  .top-actions,
+  .who {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
   }
 
   .who .who-text {
