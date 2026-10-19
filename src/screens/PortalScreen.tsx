@@ -40,7 +40,7 @@ function PortalHeader({
           <p className="who">
             <span className="who-text">
               {user.name}{" "}
-              <span>
+              <span className="who-email">
                 {roleTitle} · {user.email}
               </span>
             </span>
