@@ -1,5 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { listRoles, loginUser, registerUser } from "../lib/storage.ts";
+import {
+  listRoles,
+  loginUser,
+  registerUser,
+  type StoredUser,
+} from "../lib/storage.ts";
 
 type RegisterProps = {
   onRegistered: () => void;
@@ -10,7 +15,7 @@ export function RegisterScreen({
   onRegistered,
   onShowLogin,
 }: RegisterProps) {
-  const roles = listRoles();
+  const [roles] = useState(listRoles);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -132,7 +137,7 @@ export function RegisterScreen({
 
 type LoginProps = {
   notice: string;
-  onLoggedIn: () => void;
+  onLoggedIn: (user: StoredUser) => void;
   onShowRegister: () => void;
 };
 
@@ -156,7 +161,7 @@ export function LoginScreen({
       setError(result.message);
       return;
     }
-    onLoggedIn();
+    onLoggedIn(result.user);
   }
 
   return (

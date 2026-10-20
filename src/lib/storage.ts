@@ -31,12 +31,10 @@ type StoredRole = {
 export type StoredApp = {
   id: string;
   title: string;
-  summary: string;
   folder: string;
   url: string;
   defaultUrl: string;
   urlKnown: boolean;
-  note: string;
   /** Created from the admin address page. Kept across catalog syncs. */
   custom?: boolean;
 };
@@ -54,6 +52,15 @@ type AuthFailure = { ok: false; message: string };
 type RegisterResult = { ok: true } | AuthFailure;
 type LoginResult = { ok: true; user: StoredUser } | AuthFailure;
 
+/** Parsed once per tab. Writes replace it; another tab clears it. */
+let memory: Database | null = null;
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === STORAGE_KEY) memory = null;
+  });
+}
+
 function seedDatabase(): Database {
   return {
     version: 1,
@@ -67,12 +74,10 @@ function seedDatabase(): Database {
     apps: SEED_APPS.map((app) => ({
       id: app.id,
       title: app.title,
-      summary: app.summary,
       folder: app.folder,
       url: app.url,
       defaultUrl: app.url,
       urlKnown: app.urlKnown,
-      note: app.note,
     })),
     sessionUserId: null,
     catalogUrlEpoch: CATALOG_URL_EPOCH,
@@ -118,12 +123,10 @@ function syncCatalog(database: Database): boolean {
       database.apps.push({
         id: seed.id,
         title: seed.title,
-        summary: seed.summary,
         folder: seed.folder,
         url: seed.url,
         defaultUrl: seed.url,
         urlKnown: seed.urlKnown,
-        note: seed.note,
       });
       changed = true;
       continue;
@@ -132,29 +135,26 @@ function syncCatalog(database: Database): boolean {
       if (
         stored.url !== seed.url ||
         stored.defaultUrl !== seed.url ||
-        stored.note !== seed.note ||
         stored.urlKnown !== seed.urlKnown
       ) {
         stored.url = seed.url;
         stored.defaultUrl = seed.url;
-        stored.note = seed.note;
         stored.urlKnown = seed.urlKnown;
         changed = true;
       }
       continue;
     }
     const untouched = stored.url === stored.defaultUrl;
-    if (
-      stored.defaultUrl !== seed.url ||
-      stored.note !== seed.note ||
-      stored.urlKnown !== seed.urlKnown
-    ) {
+    if (stored.defaultUrl !== seed.url || stored.urlKnown !== seed.urlKnown) {
       stored.defaultUrl = seed.url;
-      stored.note = seed.note;
       stored.urlKnown = seed.urlKnown;
       if (untouched) stored.url = seed.url;
       changed = true;
     }
+  }
+
+  for (const app of database.apps) {
+    if (stripLegacyAppFields(app)) changed = true;
   }
 
   if (database.catalogUrlEpoch !== CATALOG_URL_EPOCH) {
@@ -210,6 +210,20 @@ function syncCatalog(database: Database): boolean {
   return changed;
 }
 
+function stripLegacyAppFields(app: StoredApp): boolean {
+  const legacy = app as StoredApp & { summary?: unknown; note?: unknown };
+  let changed = false;
+  if ("summary" in legacy) {
+    delete legacy.summary;
+    changed = true;
+  }
+  if ("note" in legacy) {
+    delete legacy.note;
+    changed = true;
+  }
+  return changed;
+}
+
 function syncAdminPasswords(database: Database): boolean {
   let changed = false;
   for (const user of database.users) {
@@ -223,24 +237,34 @@ function syncAdminPasswords(database: Database): boolean {
 }
 
 function readDatabase(): Database {
+  if (memory) return memory;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedDatabase();
+    if (!raw) return persist(seedDatabase());
     const parsed: unknown = JSON.parse(raw);
-    if (!isDatabase(parsed)) return seedDatabase();
-    if (syncCatalog(parsed) || syncAdminPasswords(parsed)) writeDatabase(parsed);
+    if (!isDatabase(parsed)) return persist(seedDatabase());
+    const catalogChanged = syncCatalog(parsed);
+    const passwordsChanged = syncAdminPasswords(parsed);
+    if (catalogChanged || passwordsChanged) writeDatabase(parsed);
+    memory = parsed;
     return parsed;
   } catch {
-    return seedDatabase();
+    return memory ?? seedDatabase();
   }
+}
+
+function persist(database: Database): Database {
+  writeDatabase(database);
+  return database;
 }
 
 function writeDatabase(database: Database): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(database));
+  memory = database;
 }
 
 export function ensureDatabase(): void {
-  if (!localStorage.getItem(STORAGE_KEY)) writeDatabase(seedDatabase());
+  readDatabase();
 }
 
 export function listRoles(): StoredRole[] {
@@ -362,6 +386,7 @@ export function updateAppUrl(
   const database = readDatabase();
   const app = database.apps.find((item) => item.id === appId);
   if (!app) return { ok: false, message: "Приложение не найдено." };
+  if (app.url === next) return { ok: true };
   app.url = next;
   writeDatabase(database);
   return { ok: true };
@@ -372,8 +397,10 @@ export function resetAppUrl(appId: string): void {
   const app = database.apps.find((item) => item.id === appId);
   if (!app) return;
   const seed = SEED_APPS.find((item) => item.id === appId);
-  app.url = seed?.url ?? app.defaultUrl;
-  app.defaultUrl = seed?.url ?? app.defaultUrl;
+  const next = seed?.url ?? app.defaultUrl;
+  if (app.url === next && app.defaultUrl === next) return;
+  app.url = next;
+  app.defaultUrl = next;
   writeDatabase(database);
 }
 
@@ -395,12 +422,10 @@ export function addApp(input: {
   const app: StoredApp = {
     id: crypto.randomUUID(),
     title,
-    summary: title,
     folder: "",
     url,
     defaultUrl: url,
     urlKnown: true,
-    note: "Добавлено в админке.",
     custom: true,
   };
   database.apps.push(app);

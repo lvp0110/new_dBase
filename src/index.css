@@ -11,15 +11,15 @@
   font-family: "Montserrat", sans-serif;
   color: var(--ink);
   background-color: var(--bg);
-  background-image: url("/portal-background.jpg");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
   line-height: 1.45;
 }
 
 * {
   box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 body {
@@ -41,7 +41,6 @@ p {
 }
 
 .eyebrow {
-  /* margin: 0 0 6px; */
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -56,6 +55,7 @@ p {
   align-items: center;
   gap: 56px;
   padding: 40px 24px;
+  background: url("/portal-background.jpg") center / cover no-repeat;
 }
 
 .auth-intro h1 {
@@ -340,23 +340,15 @@ button,
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
+  background-color: var(--bg);
 }
 
-.shell::before,
 .shell::after {
   content: "";
   position: fixed;
   inset: 0;
-  pointer-events: none;
-}
-
-.shell::before {
-  z-index: -2;
-  background: var(--bg);
-}
-
-.shell::after {
   z-index: -1;
+  pointer-events: none;
   background: url("/portal-background.jpg") center / cover no-repeat;
   opacity: 0.2;
 }
@@ -427,7 +419,6 @@ button,
 .top-actions {
   display: flex;
   gap: 8px;
-  /* flex-wrap: wrap; */
 }
 
 .workspace {
@@ -536,7 +527,6 @@ button,
 }
 
 .stage-head h2 {
-  /* margin: 5px; */
   padding: 6px 0px 0px 14px;
 }
 
@@ -731,9 +721,12 @@ button.deck-section:focus-visible {
 }
 
 @media (max-width: 560px) {
-  .auth,
+  .auth {
+    grid-template-columns: 1fr;
+    padding: 8px 10px;
+  }
+
   .topbar {
-    grid-template-columns: 1fr;       
     padding: 8px 10px;
   }
 
@@ -806,11 +799,6 @@ button.deck-section:focus-visible {
     display: block;
   }
 
-  .who span {
-    display: block;
-    margin-left: 0;
-  }
-
   .sidebar {
     width: 100%;
     max-width: 100%;
@@ -853,10 +841,6 @@ button.deck-section:focus-visible {
     justify-content: space-between;
   }
 
-  .section-board {
-    gap: 4px;
-  }
-
   .stage-head a {
     display: inline-flex;
     align-items: center;
@@ -885,6 +869,7 @@ button.deck-section:focus-visible {
   .section-board {
     display: flex;
     flex-direction: column;
+    gap: 4px;
     height: 100%;
     overflow: hidden;
   }

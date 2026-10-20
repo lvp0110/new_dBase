@@ -15,9 +15,9 @@ export default function App() {
       return (
         <LoginScreen
           notice={notice}
-          onLoggedIn={() => {
+          onLoggedIn={(next) => {
             setNotice("");
-            setUser(getSessionUser());
+            setUser(next);
           }}
           onShowRegister={() => {
             setNotice("");

@@ -11,11 +11,9 @@ type SeedRole = {
 type SeedApp = {
   id: string;
   title: string;
-  summary: string;
   folder: string;
   url: string;
   urlKnown: boolean;
-  note: string;
   roles: Array<Exclude<RoleId, "admin">>;
 };
 
@@ -46,46 +44,43 @@ export const SEED_ROLES: SeedRole[] = [
  * Portal iframe URLs. The apps this portal starts use consecutive localhost
  * ports. `urlKnown: false` with `about:blank` means «Открыть» does not open
  * a listen port.
+ *
+ * sound-calc — vite port 5173, base `/`.
+ * acoustic-calc — not running; about:blank so «Открыть» does not hit port 3000.
+ * vibro-compare — path `/vibro_compare`, started with HTTP_PORT=5174.
+ * co-worker — vite port 5175, base `/`.
  */
 export const SEED_APPS: SeedApp[] = [
   {
     id: "sound-calc",
     title: "Калькулятор звукоизоляции",
-    summary: "Расчёт звукоизоляции, ag_sound_calc.",
     folder: "ag_sound_calc/frontend",
     url: "http://localhost:5173/",
     urlKnown: true,
-    note: "vite.config.js server.port: 5173, base по умолчанию /.",
     roles: ["acoustic"],
   },
   {
     id: "acoustic-calc",
     title: "Акустический калькулятор",
-    summary: "Подбор акустических материалов, newCalcAcostic.",
     folder: "newCalcAcostic",
     url: "about:blank",
     urlKnown: false,
-    note: "Приложение остаётся в каталоге и не запущено. Адрес не указывает на порт 3000, «Открыть» этот порт не открывает.",
     roles: ["acoustic"],
   },
   {
     id: "vibro-compare",
     title: "Сравнение виброизоляции",
-    summary: "Сравнение виброизоляционных решений.",
     folder: "vibro_compare 17.27.06",
     url: "http://localhost:5174/vibro_compare",
     urlKnown: true,
-    note: "Путь /vibro_compare сохранён. Порт задан при запуске через HTTP_PORT=5174.",
     roles: ["acoustic"],
   },
   {
     id: "co-worker",
     title: "Калькулятор и коммерческие предложения",
-    summary: "Конструкции, КП и справочники, ag_co_worker.",
     folder: "ag_co_worker/frontend",
     url: "http://localhost:5175/",
     urlKnown: true,
-    note: "vite.config.js server.port: 5175, base по умолчанию /.",
     roles: ["acoustic", "sales"],
   },
 ];

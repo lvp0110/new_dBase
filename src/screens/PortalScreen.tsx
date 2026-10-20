@@ -127,53 +127,48 @@ function PortalHeader({
   );
 }
 
+const COMPACT_QUERY = "(width < 400px) and (height < 800px)";
+
+function useCompactLayout() {
+  const [compact, setCompact] = useState(
+    () => window.matchMedia(COMPACT_QUERY).matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia(COMPACT_QUERY);
+    const onChange = () => setCompact(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  return compact;
+}
+
 export function PortalScreen({ user, onLogout }: PortalProps) {
   const [view, setView] = useState<"sections" | "apps" | "urls">("sections");
   const [, setRevision] = useState(0);
   const role = getRole(user.roleId);
   const apps = appsForRole(user.roleId);
   const [selectedId, setSelectedId] = useState(apps[0]?.id ?? "");
+  const [openedIds, setOpenedIds] = useState<string[]>([]);
   const selected = apps.find((app) => app.id === selectedId) ?? apps[0];
-  const viewport = useViewport();
-  const compactIcons = viewport.width < 400 && viewport.height < 800;
+  const compactIcons = useCompactLayout();
 
   function logout() {
     clearSession();
     onLogout();
   }
 
-  if (view === "sections") {
-    return (
-      <div className="shell sections-shell">
-        <PortalHeader
-          user={user}
-          roleTitle={role?.title ?? user.roleId}
-          onOpenAddresses={() => setView("urls")}
-          onLogout={logout}
-        />
-        {compactIcons ? (
-          <CompactIconBoard
-            apps={apps}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("apps");
-            }}
-          />
-        ) : (
-          <SectionBoard
-            apps={apps}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("apps");
-            }}
-          />
-        )}
-      </div>
+  function openApp(id: string) {
+    setSelectedId(id);
+    setOpenedIds((current) =>
+      current.includes(id) ? current : [...current, id],
     );
+    setView("apps");
   }
 
   return (
-    <div className="shell">
+    <div className={view === "sections" ? "shell sections-shell" : "shell"}>
       <PortalHeader
         user={user}
         roleTitle={role?.title ?? user.roleId}
@@ -181,8 +176,14 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
         onOpenAddresses={() => setView("urls")}
         onLogout={logout}
       />
-
-      <div className="workspace">
+      {view === "sections" ? (
+        compactIcons ? (
+          <CompactIconBoard apps={apps} onOpen={openApp} />
+        ) : (
+          <SectionBoard apps={apps} onOpen={openApp} />
+        )
+      ) : null}
+      <div className="workspace" hidden={view === "sections"}>
         {compactIcons && view === "apps" ? (
           <div className="compact-back-bar">
             <button
@@ -195,50 +196,47 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
             </button>
           </div>
         ) : (
-        <aside className="sidebar">
-          <button
-            type="button"
-            className="app-link"
-            aria-label="Назад"
-            onClick={() => setView("sections")}
-          >
-            <BackLogo />
-            <span className="app-tip" aria-hidden="true">
-              Назад
-            </span>
-          </button>
-          <hr className="sidebar-rule" />
-          {apps.length === 0 ? (
-            <p className="hint">Для этой роли нет приложений.</p>
-          ) : (
-            <ul className="app-list">
-              {apps.map((app) => (
-                <li key={app.id}>
-                  <button
-                    type="button"
-                    className={
-                      view === "apps" && selected?.id === app.id
-                        ? "app-link is-active"
-                        : "app-link"
-                    }
-                    aria-label={app.title}
-                    onClick={() => {
-                      setSelectedId(app.id);
-                      setView("apps");
-                    }}
-                  >
-                    <AppLogo id={app.id} />
-                    {compactIcons ? null : (
-                      <span className="app-tip" aria-hidden="true">
-                        {app.title}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+          <aside className="sidebar">
+            <button
+              type="button"
+              className="app-link"
+              aria-label="Назад"
+              onClick={() => setView("sections")}
+            >
+              <BackLogo />
+              <span className="app-tip" aria-hidden="true">
+                Назад
+              </span>
+            </button>
+            <hr className="sidebar-rule" />
+            {apps.length === 0 ? (
+              <p className="hint">Для этой роли нет приложений.</p>
+            ) : (
+              <ul className="app-list">
+                {apps.map((app) => (
+                  <li key={app.id}>
+                    <button
+                      type="button"
+                      className={
+                        view === "apps" && selected?.id === app.id
+                          ? "app-link is-active"
+                          : "app-link"
+                      }
+                      aria-label={app.title}
+                      onClick={() => openApp(app.id)}
+                    >
+                      <AppLogo id={app.id} />
+                      {compactIcons ? null : (
+                        <span className="app-tip" aria-hidden="true">
+                          {app.title}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
         )}
         {view === "urls" && user.roleId === "admin" ? (
           <UrlEditor
@@ -246,10 +244,17 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
               setRevision((value) => value + 1);
             }}
           />
-        ) : (
-          <section className="stage">
-            {selected ? <AppFrame app={selected} /> : null}
-          </section>
+        ) : null}
+        {apps.map((app) =>
+          openedIds.includes(app.id) ? (
+            <section
+              key={app.id}
+              className="stage"
+              hidden={view !== "apps" || selected?.id !== app.id}
+            >
+              <AppFrame app={app} />
+            </section>
+          ) : null,
         )}
       </div>
     </div>
@@ -263,11 +268,24 @@ function useViewport() {
   }));
 
   useEffect(() => {
+    let frame = 0;
     const onResize = () => {
-      setSize({ width: window.innerWidth, height: window.innerHeight });
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        setSize((current) =>
+          current.width === width && current.height === height
+            ? current
+            : { width, height },
+        );
+      });
     };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return size;
@@ -338,7 +356,13 @@ function CompactIconBoard({
     if (!node) return;
     const measure = () => {
       const rect = node.getBoundingClientRect();
-      setBox({ width: rect.width, height: rect.height });
+      const width = rect.width;
+      const height = rect.height;
+      setBox((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      );
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -492,7 +516,7 @@ function AppFrame({ app }: { app: StoredApp }) {
 function UrlEditor({ onChanged }: { onChanged: () => void }) {
   const [apps, setApps] = useState(() => listApps());
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(listApps().map((app) => [app.id, app.url])),
+    Object.fromEntries(apps.map((app) => [app.id, app.url])),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [title, setTitle] = useState("");
