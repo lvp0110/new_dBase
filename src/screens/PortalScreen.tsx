@@ -192,18 +192,7 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
         )
       ) : null}
       <div className="workspace" hidden={view === "sections"}>
-        {compactIcons && view === "apps" ? (
-          <div className="compact-back-bar">
-            <button
-              type="button"
-              className="app-link compact-back"
-              aria-label="Назад"
-              onClick={() => setView("sections")}
-            >
-              <BackLogo />
-            </button>
-          </div>
-        ) : (
+        {compactIcons && view === "apps" ? null : (
           <aside className="sidebar">
             <button
               type="button"
@@ -257,10 +246,24 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
           openedIds.includes(app.id) ? (
             <section
               key={app.id}
-              className="stage"
+              className={
+                compactIcons ? "stage is-compact-scroll" : "stage"
+              }
               hidden={view !== "apps" || selected?.id !== app.id}
             >
               <AppFrame app={app} />
+              {compactIcons ? (
+                <div className="compact-back-bar">
+                  <button
+                    type="button"
+                    className="app-link compact-back"
+                    aria-label="Назад"
+                    onClick={() => setView("sections")}
+                  >
+                    <BackLogo />
+                  </button>
+                </div>
+              ) : null}
             </section>
           ) : null,
         )}

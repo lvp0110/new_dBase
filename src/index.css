@@ -914,10 +914,14 @@ button.deck-section:focus-visible {
   height: var(--icon-size);
 }
 
+.stage.is-compact-scroll .frame {
+  min-height: 100dvh;
+}
+
 .compact-back-bar {
   display: flex;
   align-items: center;
-  padding: 8px 10px 0;
+  padding: 12px 10px 20px;
 }
 
 .compact-back.app-link:hover,
