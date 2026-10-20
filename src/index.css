@@ -914,17 +914,13 @@ button.deck-section:focus-visible {
   height: var(--icon-size);
 }
 
-.stage.is-compact-scroll .frame {
-  min-height: 100dvh;
-}
+@media (max-width: 399px) and (max-height: 799px) {
+  .topbar .ghost {
+    padding: clamp(10px, 3.2vw, 16px);
+  }
 
-.compact-back-bar {
-  display: flex;
-  align-items: center;
-  padding: 12px 10px 20px;
-}
-
-.compact-back.app-link:hover,
-.compact-back.app-link:focus-visible {
-  width: 52px;
+  .topbar .ghost-icon {
+    width: clamp(28px, 8vw, 36px);
+    height: clamp(28px, 8vw, 36px);
+  }
 }

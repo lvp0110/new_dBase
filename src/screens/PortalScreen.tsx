@@ -173,7 +173,38 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
       current.includes(id) ? current : [...current, id],
     );
     setView("apps");
+    if (compactIcons) {
+      window.history.pushState({ portalView: "apps", appId: id }, "");
+    }
   }
+
+  function openAddresses() {
+    setView("urls");
+    if (compactIcons) {
+      window.history.pushState({ portalView: "urls" }, "");
+    }
+  }
+
+  useEffect(() => {
+    if (!compactIcons) return;
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state as
+        | { portalView?: "sections" | "apps" | "urls"; appId?: string }
+        | null;
+      if (state?.portalView === "apps" && state.appId) {
+        setSelectedId(state.appId);
+        setView("apps");
+        return;
+      }
+      if (state?.portalView === "urls") {
+        setView("urls");
+        return;
+      }
+      setView("sections");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [compactIcons]);
 
   return (
     <div className={view === "sections" ? "shell sections-shell" : "shell"}>
@@ -181,7 +212,7 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
         user={user}
         roleTitle={role?.title ?? user.roleId}
         addressesActive={view === "urls"}
-        onOpenAddresses={() => setView("urls")}
+        onOpenAddresses={openAddresses}
         onLogout={logout}
       />
       {view === "sections" ? (
@@ -194,18 +225,22 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
       <div className="workspace" hidden={view === "sections"}>
         {compactIcons && view === "apps" ? null : (
           <aside className="sidebar">
-            <button
-              type="button"
-              className="app-link"
-              aria-label="Назад"
-              onClick={() => setView("sections")}
-            >
-              <BackLogo />
-              <span className="app-tip" aria-hidden="true">
-                Назад
-              </span>
-            </button>
-            <hr className="sidebar-rule" />
+            {compactIcons ? null : (
+              <>
+                <button
+                  type="button"
+                  className="app-link"
+                  aria-label="Назад"
+                  onClick={() => setView("sections")}
+                >
+                  <BackLogo />
+                  <span className="app-tip" aria-hidden="true">
+                    Назад
+                  </span>
+                </button>
+                <hr className="sidebar-rule" />
+              </>
+            )}
             {apps.length === 0 ? (
               <p className="hint">Для этой роли нет приложений.</p>
             ) : (
@@ -246,24 +281,10 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
           openedIds.includes(app.id) ? (
             <section
               key={app.id}
-              className={
-                compactIcons ? "stage is-compact-scroll" : "stage"
-              }
+              className="stage"
               hidden={view !== "apps" || selected?.id !== app.id}
             >
               <AppFrame app={app} />
-              {compactIcons ? (
-                <div className="compact-back-bar">
-                  <button
-                    type="button"
-                    className="app-link compact-back"
-                    aria-label="Назад"
-                    onClick={() => setView("sections")}
-                  >
-                    <BackLogo />
-                  </button>
-                </div>
-              ) : null}
             </section>
           ) : null,
         )}
@@ -336,6 +357,20 @@ function compactIconLayout(count: number) {
   return { columns, rows: Math.ceil(count / columns) };
 }
 
+function compactIconSize(
+  width: number,
+  height: number,
+  columns: number,
+  rows: number,
+) {
+  const boardWidth = width > 0 ? width : window.innerWidth;
+  const boardHeight = height > 0 ? height : Math.max(window.innerHeight - 80, 200);
+  const gap = Math.max(16, boardWidth * 0.05);
+  const byWidth = (boardWidth - gap * (columns + 1)) / columns;
+  const byHeight = (boardHeight - gap * 2) / rows;
+  return Math.round(Math.max(72, Math.min(byWidth, byHeight, 180)));
+}
+
 function evenIconGap(
   width: number,
   height: number,
@@ -359,7 +394,7 @@ function CompactIconBoard({
   const boardRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: 0, height: 0 });
   const { columns, rows } = compactIconLayout(apps.length);
-  const iconSize = 80;
+  const iconSize = compactIconSize(box.width, box.height, columns, rows);
   const gap = evenIconGap(box.width, box.height, columns, rows, iconSize);
 
   useEffect(() => {
@@ -391,6 +426,7 @@ function CompactIconBoard({
       className="compact-icons"
       data-testid="compact-icons"
       style={{
+        ["--icon-size" as string]: `${iconSize}px`,
         gridTemplateColumns: `repeat(${columns}, ${iconSize}px)`,
         gridTemplateRows: `repeat(${rows}, ${iconSize}px)`,
         gap,
