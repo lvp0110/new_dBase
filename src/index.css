@@ -304,6 +304,13 @@ button,
   border-color: var(--line);
 }
 
+.ghost-icon {
+  display: none;
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
 .text-button {
   background: transparent;
   color: #5a8781;
@@ -524,7 +531,7 @@ button,
   gap: 12px;
   align-items: flex-start;
   color: var(--accent);
-  background: #ffffffa8;
+  background: #ffffffe6;
   border-radius: 10px;
 }
 
@@ -741,7 +748,7 @@ button.deck-section:focus-visible {
     gap: 24px;
     align-items: start;
   }
-
+ 
   .shell {
     width: 100%;
     max-width: 100%;
@@ -764,6 +771,22 @@ button.deck-section:focus-visible {
 
   .topbar .eyebrow {
     display: none;
+  }
+
+  .topbar .ghost-label {
+    display: none;
+  }
+
+  .topbar .ghost-icon {
+    display: block;
+  }
+
+  .topbar .ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    line-height: 0;
   }
 
   .topbar-start,
@@ -830,6 +853,10 @@ button.deck-section:focus-visible {
     justify-content: space-between;
   }
 
+  .section-board {
+    gap: 4px;
+  }
+
   .stage-head a {
     display: inline-flex;
     align-items: center;
@@ -875,4 +902,40 @@ button.deck-section:focus-visible {
   .who-email {
     display: none;
   }
+}
+
+.compact-icons {
+  --icon-size: 80px;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  padding: 0;
+  place-content: baseline;
+}
+
+.compact-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+
+.compact-icon svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.compact-back-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px 0;
+}
+
+.compact-back.app-link:hover,
+.compact-back.app-link:focus-visible {
+  width: 52px;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AppLogo, BackLogo } from "../components/AppLogo.tsx";
 import {
   addApp,
@@ -17,6 +17,62 @@ type PortalProps = {
   user: StoredUser;
   onLogout: () => void;
 };
+
+function AddressesIcon() {
+  return (
+    <svg
+      className="ghost-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.14-1.14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg
+      className="ghost-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M9 6V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 12H3m0 0 3-3M3 12l3 3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function PortalHeader({
   user,
@@ -54,13 +110,16 @@ function PortalHeader({
             <button
               type="button"
               className={addressesActive ? "ghost is-active" : "ghost"}
+              aria-label="Адреса"
               onClick={onOpenAddresses}
             >
-              Адреса
+              <span className="ghost-label">Адреса</span>
+              <AddressesIcon />
             </button>
           ) : null}
-          <button type="button" className="ghost" onClick={onLogout}>
-            Выйти
+          <button type="button" className="ghost" aria-label="Выйти" onClick={onLogout}>
+            <span className="ghost-label">Выйти</span>
+            <LogoutIcon />
           </button>
         </nav>
       </div>
@@ -75,6 +134,8 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
   const apps = appsForRole(user.roleId);
   const [selectedId, setSelectedId] = useState(apps[0]?.id ?? "");
   const selected = apps.find((app) => app.id === selectedId) ?? apps[0];
+  const viewport = useViewport();
+  const compactIcons = viewport.width < 400 && viewport.height < 800;
 
   function logout() {
     clearSession();
@@ -90,13 +151,23 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
           onOpenAddresses={() => setView("urls")}
           onLogout={logout}
         />
-        <SectionBoard
-          apps={apps}
-          onOpen={(id) => {
-            setSelectedId(id);
-            setView("apps");
-          }}
-        />
+        {compactIcons ? (
+          <CompactIconBoard
+            apps={apps}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("apps");
+            }}
+          />
+        ) : (
+          <SectionBoard
+            apps={apps}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("apps");
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -112,6 +183,18 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
       />
 
       <div className="workspace">
+        {compactIcons && view === "apps" ? (
+          <div className="compact-back-bar">
+            <button
+              type="button"
+              className="app-link compact-back"
+              aria-label="Назад"
+              onClick={() => setView("sections")}
+            >
+              <BackLogo />
+            </button>
+          </div>
+        ) : (
         <aside className="sidebar">
           <button
             type="button"
@@ -145,15 +228,18 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
                     }}
                   >
                     <AppLogo id={app.id} />
-                    <span className="app-tip" aria-hidden="true">
-                      {app.title}
-                    </span>
+                    {compactIcons ? null : (
+                      <span className="app-tip" aria-hidden="true">
+                        {app.title}
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </aside>
+        )}
         {view === "urls" && user.roleId === "admin" ? (
           <UrlEditor
             onChanged={() => {
@@ -209,6 +295,86 @@ function gridShape(count: number, width: number, height: number) {
     columns = Math.min(count, Math.ceil(count / maxRows));
   }
   return { columns, rows: Math.ceil(count / columns) };
+}
+
+function compactIconLayout(count: number) {
+  if (count <= 1) return { columns: 1, rows: 1 };
+  if (count === 2) return { columns: 2, rows: 1 };
+  if (count === 3) return { columns: 3, rows: 1 };
+  if (count <= 4) return { columns: 2, rows: 2 };
+  if (count <= 6) return { columns: 3, rows: 2 };
+  const columns = 3;
+  return { columns, rows: Math.ceil(count / columns) };
+}
+
+function evenIconGap(
+  width: number,
+  height: number,
+  columns: number,
+  rows: number,
+  size: number,
+) {
+  if (width <= 0 || height <= 0) return 24;
+  const gapX = (width - columns * size) / (columns + 1);
+  const edgeY = (height - rows * size) / 2;
+  return Math.max(12, Math.min(gapX, edgeY));
+}
+
+function CompactIconBoard({
+  apps,
+  onOpen,
+}: {
+  apps: StoredApp[];
+  onOpen: (id: string) => void;
+}) {
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const { columns, rows } = compactIconLayout(apps.length);
+  const iconSize = 80;
+  const gap = evenIconGap(box.width, box.height, columns, rows, iconSize);
+
+  useEffect(() => {
+    const node = boardRef.current;
+    if (!node) return;
+    const measure = () => {
+      const rect = node.getBoundingClientRect();
+      setBox({ width: rect.width, height: rect.height });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  if (apps.length === 0) {
+    return <p className="hint">Для этой роли нет приложений.</p>;
+  }
+
+  return (
+    <div
+      ref={boardRef}
+      className="compact-icons"
+      data-testid="compact-icons"
+      style={{
+        gridTemplateColumns: `repeat(${columns}, ${iconSize}px)`,
+        gridTemplateRows: `repeat(${rows}, ${iconSize}px)`,
+        gap,
+        padding: gap,
+      }}
+    >
+      {apps.map((app) => (
+        <button
+          key={app.id}
+          type="button"
+          className="compact-icon"
+          aria-label={app.title}
+          onClick={() => onOpen(app.id)}
+        >
+          <AppLogo id={app.id} />
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function SectionBoard({
