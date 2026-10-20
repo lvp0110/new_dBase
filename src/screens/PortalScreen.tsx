@@ -275,13 +275,42 @@ function SectionBoard({
   );
 }
 
+function OpenSeparateIcon() {
+  return (
+    <svg
+      className="open-separate-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M9.1 20.4H7.2A3.4 3.4 0 0 1 3.8 17V7.2A3.4 3.4 0 0 1 7.2 3.8h9.6A3.4 3.4 0 0 1 20.2 7.2V12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.5 12.7H9.2m0 0 2.4-2.4M9.2 12.7l2.4 2.4M14.5 12.7 20.4 18.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function AppFrame({ app }: { app: StoredApp }) {
   return (
     <>
       <div className="stage-head">
         <h2>{app.title}</h2>
-        <a href={app.url} target="_blank" rel="noreferrer">
-          Открыть отдельно
+        <a href={app.url} target="_blank" rel="noreferrer" aria-label="Открыть отдельно">
+          <span className="open-separate-label">Открыть отдельно</span>
+          <OpenSeparateIcon />
         </a>
       </div>
       <iframe

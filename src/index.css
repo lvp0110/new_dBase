@@ -551,6 +551,13 @@ button,
   border-color: rgba(113, 174, 180, 0.9);
 }
 
+.open-separate-icon {
+  display: none;
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
 .frame {
   flex: 1;
   width: 100%;
@@ -817,6 +824,37 @@ button.deck-section:focus-visible {
 }
 
 @media (max-width: 767px) {
+  .stage-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .stage-head a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    justify-self: end;
+    align-self: center;
+    padding: 8px;
+    line-height: 0;
+  }
+
+  .stage-head h2 {
+    font-size: clamp(1rem, 1.5vw, 1.35rem);
+    padding: 8px 16px 10px;
+
+  }
+
+  .open-separate-label {
+    display: none;
+  }
+
+  .open-separate-icon {
+    display: block;
+  }
+
   .section-board {
     display: flex;
     flex-direction: column;
