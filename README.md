@@ -17,6 +17,10 @@ npm run dev
 
 Адрес: http://127.0.0.1:4721
 
+Опубликованная версия: https://lvp0110.github.io/new_dBase/
+
+Сборка уходит на GitHub Pages при отправке в `main`. В настройках репозитория источник Pages должен быть **GitHub Actions**.
+
 ## Скрипты
 
 - `npm run dev` — режим разработки

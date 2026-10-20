@@ -90,7 +90,11 @@ function PortalHeader({
   return (
     <header className="topbar">
       <div className="topbar-start">
-        <img className="brand-logo" src="/logo_1234.png" alt="dataBase" />
+        <img
+          className="brand-logo"
+          src={`${import.meta.env.BASE_URL}logo_1234.png`}
+          alt="dataBase"
+        />
         <div>
           <p className="eyebrow">Портал приложений</p>
           <p className="who">
@@ -100,7 +104,11 @@ function PortalHeader({
                 {roleTitle} · {user.email}
               </span>
             </span>
-            <img className="who-logo" src="/person_logo.png" alt={user.name} />
+            <img
+              className="who-logo"
+              src={`${import.meta.env.BASE_URL}person_logo.png`}
+              alt={user.name}
+            />
           </p>
         </div>
       </div>
