@@ -323,13 +323,6 @@ function useViewport() {
   return size;
 }
 
-const BLANK_SECTIONS = [
-  { id: "blank-1", title: "Секция 1" },
-  { id: "blank-2", title: "Секция 2" },
-  { id: "blank-3", title: "Секция 3" },
-  { id: "blank-4", title: "Секция 4" },
-] as const;
-
 const LOREM_50 =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat.";
 
@@ -456,7 +449,7 @@ function SectionBoard({
   onOpen: (id: string) => void;
 }) {
   const viewport = useViewport();
-  const sectionCount = apps.length + BLANK_SECTIONS.length;
+  const sectionCount = apps.length;
   const { columns, rows } = gridShape(
     sectionCount,
     viewport.width,
@@ -486,18 +479,6 @@ function SectionBoard({
             <h2>{app.title}</h2>
           </span>
         </button>
-      ))}
-      {BLANK_SECTIONS.map((section) => (
-        <section
-          className="deck-section"
-          key={section.id}
-          aria-label={section.title}
-          data-testid="blank-section"
-        >
-          <div className="deck-item">
-            <h2>{section.title}</h2>
-          </div>
-        </section>
       ))}
       {emptyCells > 0 ? (
         <div
