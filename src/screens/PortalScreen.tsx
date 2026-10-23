@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { logoutUser, type SessionUser } from "../lib/auth.ts";
 import { AppLogo, BackLogo } from "../components/AppLogo.tsx";
 import {
   addApp,
-  appsForRole,
-  clearSession,
+  appsVisibleTo,
   getRole,
   listApps,
   removeApp,
   resetAppUrl,
+  setAppAccess,
   updateAppUrl,
+  type AppAccessKey,
   type StoredApp,
-  type StoredUser,
 } from "../lib/storage.ts";
 
 type PortalProps = {
-  user: StoredUser;
+  user: SessionUser;
   onLogout: () => void;
 };
 
@@ -81,7 +82,7 @@ function PortalHeader({
   onOpenAddresses,
   onLogout,
 }: {
-  user: StoredUser;
+  user: SessionUser;
   roleTitle: string;
   addressesActive?: boolean;
   onOpenAddresses: () => void;
@@ -155,15 +156,15 @@ function useCompactLayout() {
 export function PortalScreen({ user, onLogout }: PortalProps) {
   const [view, setView] = useState<"sections" | "apps" | "urls">("sections");
   const [, setRevision] = useState(0);
-  const role = getRole(user.roleId);
-  const apps = appsForRole(user.roleId);
+  const role = user.roleId ? getRole(user.roleId) : undefined;
+  const apps = appsVisibleTo(user.roleId);
   const [selectedId, setSelectedId] = useState(apps[0]?.id ?? "");
   const [openedIds, setOpenedIds] = useState<string[]>([]);
   const selected = apps.find((app) => app.id === selectedId) ?? apps[0];
   const compactIcons = useCompactLayout();
 
-  function logout() {
-    clearSession();
+  async function logout() {
+    await logoutUser();
     onLogout();
   }
 
@@ -210,7 +211,7 @@ export function PortalScreen({ user, onLogout }: PortalProps) {
     <div className={view === "sections" ? "shell sections-shell" : "shell"}>
       <PortalHeader
         user={user}
-        roleTitle={role?.title ?? user.roleId}
+        roleTitle={role?.title ?? user.roleLabel}
         addressesActive={view === "urls"}
         onOpenAddresses={openAddresses}
         onLogout={logout}
@@ -578,7 +579,8 @@ function UrlEditor({ onChanged }: { onChanged: () => void }) {
       <h1>Адреса приложений</h1>
       <p className="hint">
         Адреса iframe хранятся в этом браузере. Сброс возвращает значение из{" "}
-        <code>src/config/catalog.ts</code>. Новое приложение видит администратор.
+        <code>src/config/catalog.ts</code>. Администратор видит все пункты.
+        Остальным доступ открывается галочками ниже.
       </p>
       <div className="url-create">
         <div className="url-create-head">
@@ -650,6 +652,35 @@ function UrlEditor({ onChanged }: { onChanged: () => void }) {
                 }
               />
             </label>
+            <fieldset className="access">
+              <legend>Кто видит, кроме администратора</legend>
+              <div className="access-options">
+                {(
+                  [
+                    ["acoustic", "Акустик"],
+                    ["hr", "Кадры"],
+                    ["sales", "Продажи"],
+                    ["others", "Остальные пользователи"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="access-option">
+                    <input
+                      type="checkbox"
+                      checked={app.access?.[key] ?? false}
+                      onChange={(event) => {
+                        setAppAccess(
+                          app.id,
+                          key satisfies AppAccessKey,
+                          event.target.checked,
+                        );
+                        refresh();
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             {errors[app.id] ? (
               <p className="error" role="alert">
                 {errors[app.id]}

@@ -1,7 +1,6 @@
 import {
   SEED_APPS,
   SEED_ROLES,
-  isRoleId,
   seedAppIdsForRole,
   type RoleId,
 } from "../config/catalog.ts";
@@ -9,17 +8,6 @@ import {
 const STORAGE_KEY = "newdbase.v1";
 /** Bump to clear saved iframe overrides once. Later edits stay. */
 const CATALOG_URL_EPOCH = 2;
-/** SHA-256 of the shared admin password. Applied to every admin account on read. */
-const ADMIN_PASSWORD_HASH =
-  "sha256:7431d3cbc67c3f1745885a191c604de9abae48d777969edb7113a58c4d1b6f4d";
-
-export type StoredUser = {
-  id: string;
-  name: string;
-  email: string;
-  passwordHash: string;
-  roleId: RoleId;
-};
 
 type StoredRole = {
   id: RoleId;
@@ -27,6 +15,10 @@ type StoredRole = {
   summary: string;
   appIds: string[];
 };
+
+export type AppAccessKey = "acoustic" | "hr" | "sales" | "others";
+
+export type AppAccess = Record<AppAccessKey, boolean>;
 
 export type StoredApp = {
   id: string;
@@ -37,20 +29,18 @@ export type StoredApp = {
   urlKnown: boolean;
   /** Created from the admin address page. Kept across catalog syncs. */
   custom?: boolean;
+  /** Who can open the app besides the administrator. */
+  access?: AppAccess;
 };
 
 type Database = {
   version: 1;
-  users: StoredUser[];
   roles: StoredRole[];
   apps: StoredApp[];
-  sessionUserId: string | null;
   catalogUrlEpoch?: number;
 };
 
 type AuthFailure = { ok: false; message: string };
-type RegisterResult = { ok: true } | AuthFailure;
-type LoginResult = { ok: true; user: StoredUser } | AuthFailure;
 
 /** Parsed once per tab. Writes replace it; another tab clears it. */
 let memory: Database | null = null;
@@ -64,7 +54,6 @@ if (typeof window !== "undefined") {
 function seedDatabase(): Database {
   return {
     version: 1,
-    users: [],
     roles: SEED_ROLES.map((role) => ({
       id: role.id,
       title: role.title,
@@ -79,7 +68,6 @@ function seedDatabase(): Database {
       defaultUrl: app.url,
       urlKnown: app.urlKnown,
     })),
-    sessionUserId: null,
     catalogUrlEpoch: CATALOG_URL_EPOCH,
   };
 }
@@ -89,7 +77,6 @@ function isDatabase(value: unknown): value is Database {
   const record = value as Database;
   return (
     record.version === 1 &&
-    Array.isArray(record.users) &&
     Array.isArray(record.roles) &&
     Array.isArray(record.apps)
   );
@@ -155,6 +142,7 @@ function syncCatalog(database: Database): boolean {
 
   for (const app of database.apps) {
     if (stripLegacyAppFields(app)) changed = true;
+    if (ensureAccess(app)) changed = true;
   }
 
   if (database.catalogUrlEpoch !== CATALOG_URL_EPOCH) {
@@ -210,6 +198,42 @@ function syncCatalog(database: Database): boolean {
   return changed;
 }
 
+const ACCESS_KEYS: AppAccessKey[] = ["acoustic", "hr", "sales", "others"];
+
+function isAppAccess(value: unknown): value is AppAccess {
+  if (!value || typeof value !== "object") return false;
+  const record = value as AppAccess;
+  return ACCESS_KEYS.every((key) => typeof record[key] === "boolean");
+}
+
+function defaultAccess(app: StoredApp): AppAccess {
+  const seed = SEED_APPS.find((item) => item.id === app.id);
+  if (app.custom || !seed) {
+    return { acoustic: false, hr: false, sales: false, others: false };
+  }
+  const roles = new Set<string>(seed.roles);
+  return {
+    acoustic: roles.has("acoustic"),
+    hr: roles.has("hr"),
+    sales: roles.has("sales"),
+    others: roles.size > 0,
+  };
+}
+
+function ensureAccess(app: StoredApp): boolean {
+  if (isAppAccess(app.access)) return false;
+  app.access = defaultAccess(app);
+  return true;
+}
+
+function allows(app: StoredApp, roleId: RoleId | null): boolean {
+  const access = app.access ?? defaultAccess(app);
+  if (roleId === "acoustic" || roleId === "hr" || roleId === "sales") {
+    return access[roleId];
+  }
+  return access.others;
+}
+
 function stripLegacyAppFields(app: StoredApp): boolean {
   const legacy = app as StoredApp & { summary?: unknown; note?: unknown };
   let changed = false;
@@ -224,18 +248,6 @@ function stripLegacyAppFields(app: StoredApp): boolean {
   return changed;
 }
 
-function syncAdminPasswords(database: Database): boolean {
-  let changed = false;
-  for (const user of database.users) {
-    if (user.roleId !== "admin" || user.passwordHash === ADMIN_PASSWORD_HASH) {
-      continue;
-    }
-    user.passwordHash = ADMIN_PASSWORD_HASH;
-    changed = true;
-  }
-  return changed;
-}
-
 function readDatabase(): Database {
   if (memory) return memory;
   try {
@@ -243,9 +255,7 @@ function readDatabase(): Database {
     if (!raw) return persist(seedDatabase());
     const parsed: unknown = JSON.parse(raw);
     if (!isDatabase(parsed)) return persist(seedDatabase());
-    const catalogChanged = syncCatalog(parsed);
-    const passwordsChanged = syncAdminPasswords(parsed);
-    if (catalogChanged || passwordsChanged) writeDatabase(parsed);
+    if (syncCatalog(parsed)) writeDatabase(parsed);
     memory = parsed;
     return parsed;
   } catch {
@@ -267,100 +277,38 @@ export function ensureDatabase(): void {
   readDatabase();
 }
 
-export function listRoles(): StoredRole[] {
-  return readDatabase().roles;
-}
-
 export function getRole(roleId: RoleId): StoredRole | undefined {
   return readDatabase().roles.find((role) => role.id === roleId);
 }
 
 export function appsForRole(roleId: RoleId): StoredApp[] {
+  return appsVisibleTo(roleId);
+}
+
+/** Admin sees every app. Other portal roles use their checkbox.
+ *  Auth roles outside the catalog (user, manager, guest) use «Остальные». */
+export function appsVisibleTo(roleId: RoleId | null): StoredApp[] {
+  const apps = readDatabase().apps;
+  if (roleId === "admin") return apps;
+  return apps.filter((app) => allows(app, roleId));
+}
+
+export function setAppAccess(
+  appId: string,
+  key: AppAccessKey,
+  enabled: boolean,
+): void {
   const database = readDatabase();
-  const role = database.roles.find((item) => item.id === roleId);
-  if (!role) return [];
-  const allowed = new Set(role.appIds);
-  return database.apps.filter((app) => allowed.has(app.id));
+  const app = database.apps.find((item) => item.id === appId);
+  if (!app) return;
+  const access = app.access ?? defaultAccess(app);
+  if (access[key] === enabled) return;
+  app.access = { ...access, [key]: enabled };
+  writeDatabase(database);
 }
 
 export function listApps(): StoredApp[] {
   return readDatabase().apps;
-}
-
-export function getSessionUser(): StoredUser | null {
-  const database = readDatabase();
-  if (!database.sessionUserId) return null;
-  return (
-    database.users.find((user) => user.id === database.sessionUserId) ?? null
-  );
-}
-
-export function clearSession(): void {
-  const database = readDatabase();
-  database.sessionUserId = null;
-  writeDatabase(database);
-}
-
-async function hashPassword(password: string): Promise<string> {
-  const bytes = new TextEncoder().encode(password);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const hex = [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-  return `sha256:${hex}`;
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-export async function registerUser(input: {
-  name: string;
-  email: string;
-  password: string;
-  roleId: string;
-}): Promise<RegisterResult> {
-  const name = input.name.trim();
-  const email = normalizeEmail(input.email);
-  if (!name) return { ok: false, message: "Введите имя." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { ok: false, message: "Введите корректную почту." };
-  }
-  if (input.password.length < 6) {
-    return { ok: false, message: "Пароль должен быть не короче 6 символов." };
-  }
-  if (!isRoleId(input.roleId)) return { ok: false, message: "Выберите роль." };
-
-  const database = readDatabase();
-  if (database.users.some((user) => user.email === email)) {
-    return { ok: false, message: "Такая почта уже зарегистрирована." };
-  }
-
-  database.users.push({
-    id: crypto.randomUUID(),
-    name,
-    email,
-    passwordHash: await hashPassword(input.password),
-    roleId: input.roleId,
-  });
-  writeDatabase(database);
-  return { ok: true };
-}
-
-export async function loginUser(input: {
-  email: string;
-  password: string;
-}): Promise<LoginResult> {
-  const email = normalizeEmail(input.email);
-  const database = readDatabase();
-  const user = database.users.find((item) => item.email === email);
-  const passwordHash = await hashPassword(input.password);
-  if (!user || user.passwordHash !== passwordHash) {
-    return { ok: false, message: "Неверная почта или пароль." };
-  }
-  database.sessionUserId = user.id;
-  writeDatabase(database);
-  return { ok: true, user };
 }
 
 function isHttpUrl(value: string): boolean {
@@ -427,6 +375,7 @@ export function addApp(input: {
     defaultUrl: url,
     urlKnown: true,
     custom: true,
+    access: { acoustic: false, hr: false, sales: false, others: false },
   };
   database.apps.push(app);
   const admin = database.roles.find((role) => role.id === "admin");

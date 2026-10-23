@@ -645,6 +645,36 @@ button,
   font-size: 1.05rem;
 }
 
+.access {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.access legend {
+  font-size: 0.92rem;
+}
+
+.access-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.access-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+
+.access-option input {
+  width: auto;
+  padding: 0;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;

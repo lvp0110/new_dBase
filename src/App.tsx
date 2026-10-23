@@ -1,53 +1,35 @@
-import { useState } from "react";
-import { LoginScreen, RegisterScreen } from "./screens/AuthScreens.tsx";
+import { useEffect, useState } from "react";
+import { fetchSession, type SessionUser } from "./lib/auth.ts";
+import { LoginScreen } from "./screens/AuthScreens.tsx";
 import { PortalScreen } from "./screens/PortalScreen.tsx";
-import { getSessionUser } from "./lib/storage.ts";
-
-type AuthView = "register" | "login";
 
 export default function App() {
-  const [user, setUser] = useState(() => getSessionUser());
-  const [authView, setAuthView] = useState<AuthView>("register");
-  const [notice, setNotice] = useState("");
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [ready, setReady] = useState(false);
 
-  if (!user) {
-    if (authView === "login") {
-      return (
-        <LoginScreen
-          notice={notice}
-          onLoggedIn={(next) => {
-            setNotice("");
-            setUser(next);
-          }}
-          onShowRegister={() => {
-            setNotice("");
-            setAuthView("register");
-          }}
-        />
-      );
-    }
+  useEffect(() => {
+    let cancelled = false;
+    fetchSession().then((next) => {
+      if (cancelled) return;
+      setUser(next);
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!ready) {
     return (
-      <RegisterScreen
-        onRegistered={() => {
-          setNotice("Учётная запись создана. Войдите.");
-          setAuthView("login");
-        }}
-        onShowLogin={() => {
-          setNotice("");
-          setAuthView("login");
-        }}
-      />
+      <main className="auth">
+        <p>Проверка входа…</p>
+      </main>
     );
   }
 
-  return (
-    <PortalScreen
-      user={user}
-      onLogout={() => {
-        setUser(null);
-        setNotice("");
-        setAuthView("login");
-      }}
-    />
-  );
+  if (!user) {
+    return <LoginScreen onLoggedIn={setUser} />;
+  }
+
+  return <PortalScreen user={user} onLogout={() => setUser(null)} />;
 }
